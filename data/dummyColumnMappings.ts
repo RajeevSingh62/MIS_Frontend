@@ -1,0 +1,115 @@
+export interface ColumnMapping {
+  sourceColumn: string;
+  targetField: string;
+}
+
+// Standard target fields for all banks
+export const standardTargetFields = [
+  'Lead Id',
+  'Created at',
+  'Customer Id',
+  'Customer Name',
+  'Customer Mobile Number',
+  'Last Status Updated Date',
+  'Product Name',
+  'Lead Status',
+  'Lead Sub Status',
+  'Lead Sub Remark',
+  'Product Category',
+  'Application No',
+  'Lead Status Category',
+  'Conversion Date',
+  'Product Id',
+  'Lead Earning Date',
+  'FI NAME',
+  'Account Opened Date',
+  'Ontask Completed Date',
+  'User Type',
+  'Lead Payout',
+  'On Task Payout',
+];
+
+const dummyColumnMappings: Record<number, ColumnMapping[]> = {
+  1: [ // HDFC
+    { targetField: 'Lead Id',                   sourceColumn: 'lead_id' },
+    { targetField: 'Created at',                sourceColumn: 'created_date' },
+    { targetField: 'Customer Id',               sourceColumn: 'cust_id' },
+    { targetField: 'Customer Name',             sourceColumn: 'cust_name' },
+    { targetField: 'Customer Mobile Number',    sourceColumn: 'mobile_no' },
+    { targetField: 'Last Status Updated Date',  sourceColumn: 'last_updated_on' },
+    { targetField: 'Product Name',              sourceColumn: 'product' },
+    { targetField: 'Lead Status',               sourceColumn: 'status' },
+    { targetField: 'Lead Sub Status',           sourceColumn: 'sub_status' },
+    { targetField: 'Lead Sub Remark',           sourceColumn: 'remark' },
+    { targetField: 'Product Category',          sourceColumn: 'product_cat' },
+    { targetField: 'Application No',            sourceColumn: 'app_number' },
+    { targetField: 'Lead Status Category',      sourceColumn: 'status_category' },
+    { targetField: 'Conversion Date',           sourceColumn: 'conversion_dt' },
+    { targetField: 'Product Id',                sourceColumn: 'prod_id' },
+    { targetField: 'Lead Earning Date',         sourceColumn: 'earning_dt' },
+    { targetField: 'FI NAME',                   sourceColumn: 'fi_name' },
+    { targetField: 'Account Opened Date',       sourceColumn: 'account_open_dt' },
+    { targetField: 'Ontask Completed Date',     sourceColumn: 'ontask_date' },
+    { targetField: 'User Type',                 sourceColumn: 'user_type' },
+    { targetField: 'Lead Payout',               sourceColumn: 'payout_amt' },
+    { targetField: 'On Task Payout',            sourceColumn: 'ontask_payout' },
+  ],
+  2: [ // Kotak
+    { targetField: 'Lead Id',                   sourceColumn: 'LeadID' },
+    { targetField: 'Created at',                sourceColumn: 'LeadCreatedDate' },
+    { targetField: 'Customer Id',               sourceColumn: 'CustomerID' },
+    { targetField: 'Customer Name',             sourceColumn: 'CustomerName' },
+    { targetField: 'Customer Mobile Number',    sourceColumn: 'MobileNumber' },
+    { targetField: 'Last Status Updated Date',  sourceColumn: 'StatusUpdateDate' },
+    { targetField: 'Product Name',              sourceColumn: 'ProductName' },
+    { targetField: 'Lead Status',               sourceColumn: 'LeadStatus' },
+    { targetField: 'Lead Sub Status',           sourceColumn: 'SubStatus' },
+    { targetField: 'Lead Sub Remark',           sourceColumn: 'Remark' },
+    { targetField: 'Product Category',          sourceColumn: 'Category' },
+    { targetField: 'Application No',            sourceColumn: 'AppNo' },
+    { targetField: 'Lead Status Category',      sourceColumn: 'StatusCategory' },
+    { targetField: 'Conversion Date',           sourceColumn: '' },
+    { targetField: 'Product Id',                sourceColumn: 'ProductID' },
+    { targetField: 'Lead Earning Date',         sourceColumn: '' },
+    { targetField: 'FI NAME',                   sourceColumn: 'BankName' },
+    { targetField: 'Account Opened Date',       sourceColumn: '' },
+    { targetField: 'Ontask Completed Date',     sourceColumn: '' },
+    { targetField: 'User Type',                 sourceColumn: 'UserCategory' },
+    { targetField: 'Lead Payout',               sourceColumn: 'PayoutAmount' },
+    { targetField: 'On Task Payout',            sourceColumn: '' },
+  ],
+  3: [ // ICICI
+    { targetField: 'Lead Id',                   sourceColumn: 'LEAD_ID' },
+    { targetField: 'Created at',                sourceColumn: 'CREATED_ON' },
+    { targetField: 'Customer Id',               sourceColumn: 'CUST_CODE' },
+    { targetField: 'Customer Name',             sourceColumn: 'FULL_NAME' },
+    { targetField: 'Customer Mobile Number',    sourceColumn: 'PHONE' },
+    { targetField: 'Last Status Updated Date',  sourceColumn: 'STATUS_DATE' },
+    { targetField: 'Product Name',              sourceColumn: 'PRODUCT_DESC' },
+    { targetField: 'Lead Status',               sourceColumn: 'LEAD_STAGE' },
+    { targetField: 'Lead Sub Status',           sourceColumn: 'SUB_STAGE' },
+    { targetField: 'Lead Sub Remark',           sourceColumn: 'REMARKS' },
+    { targetField: 'Product Category',          sourceColumn: 'PROD_CATEGORY' },
+    { targetField: 'Application No',            sourceColumn: 'APPLICATION_NO' },
+    { targetField: 'Lead Status Category',      sourceColumn: 'STAGE_CATEGORY' },
+    { targetField: 'Conversion Date',           sourceColumn: 'CONV_DATE' },
+    { targetField: 'Product Id',                sourceColumn: 'PROD_ID' },
+    { targetField: 'Lead Earning Date',         sourceColumn: 'EARN_DATE' },
+    { targetField: 'FI NAME',                   sourceColumn: 'FI_NAME' },
+    { targetField: 'Account Opened Date',       sourceColumn: 'ACC_OPEN_DATE' },
+    { targetField: 'Ontask Completed Date',     sourceColumn: 'ONTASK_DATE' },
+    { targetField: 'User Type',                 sourceColumn: 'USER_CLASS' },
+    { targetField: 'Lead Payout',               sourceColumn: 'PAYOUT' },
+    { targetField: 'On Task Payout',            sourceColumn: 'ONTASK_AMT' },
+  ],
+};
+
+// Fill remaining banks with empty mappings
+[4, 5, 6].forEach((bankId) => {
+  dummyColumnMappings[bankId] = standardTargetFields.map((targetField) => ({
+    targetField,
+    sourceColumn: '',
+  }));
+});
+
+export default dummyColumnMappings;
