@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
+import { useAppDispatch } from '@/redux/hooks';
+import { loadAllReference } from '@/features/reference/reference.thunk';
 
 export default function DashboardGroupLayout({
   children,
@@ -12,12 +14,22 @@ export default function DashboardGroupLayout({
 }) {
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+  const bootstrapped = useRef(false);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.replace('/auth/login');
     }
   }, [isAuthenticated, loading, router]);
+
+  // Load reference data (banks, products, statuses) once after auth is confirmed
+  useEffect(() => {
+    if (!loading && isAuthenticated && !bootstrapped.current) {
+      bootstrapped.current = true;
+      dispatch(loadAllReference());
+    }
+  }, [loading, isAuthenticated, dispatch]);
 
   // Show spinner while auth state is being determined
   if (loading || !isAuthenticated) {

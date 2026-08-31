@@ -3,8 +3,7 @@
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { selectDashboardFilters } from '@/features/dashboard/dashboard.selectors';
 import { setFilters, resetFilters } from '@/features/dashboard/dashboard.slice';
-import dummyBanks from '@/data/dummyBanks';
-import dummyProducts from '@/data/dummyProducts';
+import { selectBanks, selectBankProducts } from '@/features/reference/reference.selectors';
 import type { CanonicalGroup } from '@/data/dummyCanonicalStatuses';
 import Button from '@/components/ui/Button';
 
@@ -12,9 +11,8 @@ export default function DashboardFilters() {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(selectDashboardFilters);
 
-  const bankProducts = dummyProducts.filter(
-    (p) => filters.bankId && p.bank_id === filters.bankId
-  );
+  const banks = useAppSelector(selectBanks);
+  const bankProducts = useAppSelector(selectBankProducts(filters.bankId));
 
   const statusGroups: Array<{ label: string; value: CanonicalGroup | 'All' }> = [
     { label: 'All Groups', value: 'All' },
@@ -40,7 +38,7 @@ export default function DashboardFilters() {
             className={sel}
           >
             <option value="">All Banks</option>
-            {dummyBanks.map((b) => (
+            {banks.map((b) => (
               <option key={b.id} value={b.id}>{b.bank_title}</option>
             ))}
           </select>

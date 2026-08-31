@@ -12,7 +12,7 @@ import {
   addProductMapping,
   removeProductMapping,
 } from '@/features/config/config.thunk';
-import dummyProducts from '@/data/dummyProducts';
+import { selectBankProducts } from '@/features/reference/reference.selectors';
 import Button from '@/components/ui/Button';
 
 interface ProductMappingTabProps {
@@ -26,7 +26,7 @@ export default function ProductMappingTab({ bankId }: ProductMappingTabProps) {
   const loading = useAppSelector(selectConfigLoading);
 
   const [pendingSelections, setPendingSelections] = useState<Record<string, number>>({});
-  const bankProducts = dummyProducts.filter((p) => p.bank_id === bankId);
+  const bankProducts = useAppSelector(selectBankProducts(bankId));
 
   useEffect(() => {
     dispatch(loadProductMappings(bankId));

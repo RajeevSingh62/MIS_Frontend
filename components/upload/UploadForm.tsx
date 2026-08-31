@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { uploadFile } from '@/features/upload/upload.thunk';
 import { selectUploading } from '@/features/upload/upload.selectors';
-import dummyBanks from '@/data/dummyBanks';
+import { selectBanks } from '@/features/reference/reference.selectors';
 import Button from '@/components/ui/Button';
 
 export default function UploadForm() {
@@ -17,7 +17,9 @@ export default function UploadForm() {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedBank = dummyBanks.find((b) => b.id === Number(selectedBankId));
+  const banks = useAppSelector(selectBanks);
+
+  const selectedBank = banks.find((b) => b.id === Number(selectedBankId));
 
   const acceptedTypes = ['.xlsx', '.xls', '.csv'];
   const isValidFile = (f: File) =>
@@ -68,7 +70,7 @@ export default function UploadForm() {
           disabled={uploading}
         >
           <option value="">Select bank…</option>
-          {dummyBanks.map((b) => (
+          {banks.map((b) => (
             <option key={b.id} value={b.id}>{b.bank_title}</option>
           ))}
         </select>
