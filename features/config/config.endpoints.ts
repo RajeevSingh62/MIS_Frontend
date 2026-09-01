@@ -1,53 +1,24 @@
-import dummyColumnMappings from '@/data/dummyColumnMappings';
-import { dummyProductMappings, dummyUnmappedProducts } from '@/data/dummyProductMappings';
-import { dummyStatusMappingRules, dummyUnmappedStatuses } from '@/data/dummyStatusMappingRules';
-import type { ColumnMapping } from '@/data/dummyColumnMappings';
-import type { ProductMapping, UnmappedProduct } from '@/data/dummyProductMappings';
-import type { StatusMappingRule, UnmappedStatus } from '@/data/dummyStatusMappingRules';
+import axiosInstance from '@/lib/axiosInstance';
+import type { BankExcelConfig, StatusMappingRule, UnmappedStatus } from './config.types';
 
-const delay = (ms = 400) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-// ─── Column Mappings ────────────────────────────────────────────────────────
-export async function fetchColumnMappings(bankId: number): Promise<ColumnMapping[]> {
-  await delay();
-  // SWAP: return axiosInstance.get(`/api/config/column-mappings?bankId=${bankId}`)
-  return dummyColumnMappings[bankId] ?? [];
+// ─── Excel Configs ────────────────────────────────────────────────────────
+export async function fetchExcelConfigs(bankId: number): Promise<BankExcelConfig[]> {
+  const { data } = await axiosInstance.get(`/api/v1/excel-configs?bank_id=${bankId}`);
+  return data;
 }
 
-export async function saveColumnMappings(
-  bankId: number,
-  mappings: ColumnMapping[]
-): Promise<void> {
-  await delay(600);
-  // SWAP: return axiosInstance.put(`/api/config/column-mappings/${bankId}`, { mappings })
-  console.log('[mock] saveColumnMappings', { bankId, mappings });
+export async function saveExcelConfig(config: Partial<BankExcelConfig>): Promise<BankExcelConfig> {
+  if (config.id) {
+    const { data } = await axiosInstance.put(`/api/v1/excel-configs/${config.id}`, config);
+    return data;
+  } else {
+    const { data } = await axiosInstance.post('/api/v1/excel-configs', config);
+    return data;
+  }
 }
 
-// ─── Product Mappings ────────────────────────────────────────────────────────
-export async function fetchProductMappings(bankId: number): Promise<{
-  mappings: ProductMapping[];
-  unmapped: UnmappedProduct[];
-}> {
-  await delay();
-  return {
-    mappings: dummyProductMappings[bankId] ?? [],
-    unmapped: dummyUnmappedProducts[bankId] ?? [],
-  };
-}
-
-export async function saveProductMapping(
-  _bankId: number,
-  _sourceProductName: string,
-  _productId: number
-): Promise<void> {
-  await delay(500);
-  // SWAP: return axiosInstance.post('/api/config/product-mappings', { bankId, sourceProductName, productId })
-}
-
-export async function deleteProductMapping(_id: number): Promise<void> {
-  await delay(400);
-  // SWAP: return axiosInstance.delete(`/api/config/product-mappings/${id}`)
+export async function deleteExcelConfig(id: number): Promise<void> {
+  await axiosInstance.delete(`/api/v1/excel-configs/${id}`);
 }
 
 // ─── Status Mapping Rules ─────────────────────────────────────────────────────
@@ -55,24 +26,30 @@ export async function fetchStatusMappings(bankId: number): Promise<{
   rules: StatusMappingRule[];
   unmapped: UnmappedStatus[];
 }> {
-  await delay();
+  // Fetch both concurrently
+  const [rulesRes, unmappedRes] = await Promise.all([
+    axiosInstance.get(`/api/v1/status-mappings?bank_id=${bankId}`),
+    axiosInstance.get(`/api/v1/status-mappings/unmapped?bank_id=${bankId}`),
+  ]);
+
   return {
-    rules: dummyStatusMappingRules[bankId] ?? [],
-    unmapped: dummyUnmappedStatuses[bankId] ?? [],
+    rules: rulesRes.data.data || [],
+    unmapped: unmappedRes.data || [],
   };
 }
 
 export async function saveStatusRule(
-  _bankId: number,
-  _rule: Omit<StatusMappingRule, 'id'>
+  rule: Partial<StatusMappingRule>
 ): Promise<StatusMappingRule> {
-  await delay(500);
-  const newRule = { ..._rule, id: Date.now() };
-  // SWAP: return axiosInstance.post('/api/config/status-mappings', { bankId, ...rule })
-  return newRule;
+  if (rule.id) {
+    const { data } = await axiosInstance.put(`/api/v1/status-mappings/${rule.id}`, rule);
+    return data;
+  } else {
+    const { data } = await axiosInstance.post('/api/v1/status-mappings', rule);
+    return data;
+  }
 }
 
-export async function deleteStatusRule(_id: number): Promise<void> {
-  await delay(400);
-  // SWAP: return axiosInstance.delete(`/api/config/status-mappings/${id}`)
+export async function deleteStatusRule(id: number): Promise<void> {
+  await axiosInstance.delete(`/api/v1/status-mappings/${id}`);
 }

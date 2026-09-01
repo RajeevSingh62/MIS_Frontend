@@ -5,23 +5,21 @@ import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { selectSelectedBankId } from '@/features/config/config.selectors';
 import { setSelectedBank } from '@/features/config/config.slice';
 import BankProductSelector from '@/components/configuration/BankProductSelector';
-import ColumnMappingTab from '@/components/configuration/ColumnMappingTab';
-import ProductMappingTab from '@/components/configuration/ProductMappingTab';
+import ExcelConfigTab from '@/components/configuration/ExcelConfigTab';
 import StatusMappingTab from '@/components/configuration/StatusMappingTab';
 import { cn } from '@/utils/cn';
 
-type Tab = 'columns' | 'products' | 'statuses';
+type Tab = 'excel' | 'statuses';
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'columns',  label: 'Column Mapping'  },
-  { key: 'products', label: 'Product Mapping' },
-  { key: 'statuses', label: 'Status Mapping'  },
+  { key: 'excel',    label: 'Excel Configuration' },
+  { key: 'statuses', label: 'Status Mapping Rules'  },
 ];
 
 export default function ConfigurationPage() {
   const dispatch = useAppDispatch();
   const selectedBankId = useAppSelector(selectSelectedBankId);
-  const [activeTab, setActiveTab] = useState<Tab>('columns');
+  const [activeTab, setActiveTab] = useState<Tab>('excel');
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +27,7 @@ export default function ConfigurationPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configuration</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage column mappings, product mappings, and status mapping rules per bank.
+          Manage Excel parsing configurations and status mapping rules per bank.
         </p>
       </div>
 
@@ -45,17 +43,17 @@ export default function ConfigurationPage() {
       {selectedBankId ? (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           {/* Tab bar */}
-          <div className="flex border-b border-gray-200 bg-gray-50">
+          <div className="flex border-b border-gray-200 bg-gray-50 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 id={`config-tab-${tab.key}`}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  'px-5 py-3.5 text-sm font-medium transition-colors relative',
+                  'px-6 py-3.5 text-sm font-medium transition-colors relative whitespace-nowrap',
                   activeTab === tab.key
                     ? 'text-indigo-700 bg-white border-b-2 border-indigo-600'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-white/60'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/50'
                 )}
               >
                 {tab.label}
@@ -64,10 +62,9 @@ export default function ConfigurationPage() {
           </div>
 
           {/* Tab content */}
-          <div className="p-5">
-            {activeTab === 'columns'  && <ColumnMappingTab  bankId={selectedBankId} />}
-            {activeTab === 'products' && <ProductMappingTab bankId={selectedBankId} />}
-            {activeTab === 'statuses' && <StatusMappingTab  bankId={selectedBankId} />}
+          <div className="p-6">
+            {activeTab === 'excel' && <ExcelConfigTab bankId={selectedBankId} />}
+            {activeTab === 'statuses' && <StatusMappingTab bankId={selectedBankId} />}
           </div>
         </div>
       ) : (

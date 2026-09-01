@@ -1,22 +1,17 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { ConfigState } from './config.types';
-import type { ColumnMapping } from '@/data/dummyColumnMappings';
+import type { ConfigState, BankExcelConfig } from './config.types';
 import {
-  loadColumnMappings,
-  persistColumnMappings,
-  loadProductMappings,
-  addProductMapping,
-  removeProductMapping,
+  loadExcelConfigs,
+  addOrUpdateExcelConfig,
+  removeExcelConfig,
   loadStatusMappings,
-  addStatusRule,
+  addOrUpdateStatusRule,
   removeStatusRule,
 } from './config.thunk';
 
 const initialState: ConfigState = {
   selectedBankId: null,
-  columnMappings: [],
-  productMappings: [],
-  unmappedProducts: [],
+  excelConfigs: [],
   statusMappingRules: [],
   unmappedStatuses: [],
   loading: false,
@@ -30,84 +25,43 @@ const configSlice = createSlice({
     setSelectedBank(state, action: PayloadAction<number | null>) {
       state.selectedBankId = action.payload;
       // Clear data when bank changes
-      state.columnMappings = [];
-      state.productMappings = [];
-      state.unmappedProducts = [];
+      state.excelConfigs = [];
       state.statusMappingRules = [];
       state.unmappedStatuses = [];
       state.error = null;
-    },
-    updateColumnMapping(
-      state,
-      action: PayloadAction<{ index: number; sourceColumn: string }>
-    ) {
-      const { index, sourceColumn } = action.payload;
-      if (state.columnMappings[index]) {
-        state.columnMappings[index].sourceColumn = sourceColumn;
-      }
     },
     clearConfigError(state) {
       state.error = null;
     },
   },
   extraReducers: (builder) => {
-    // Column mappings
+    // Excel Configs
     builder
-      .addCase(loadColumnMappings.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(loadColumnMappings.fulfilled, (state, action) => {
+      .addCase(loadExcelConfigs.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(loadExcelConfigs.fulfilled, (state, action) => {
         state.loading = false;
-        state.columnMappings = action.payload as ColumnMapping[];
+        state.excelConfigs = action.payload as BankExcelConfig[];
       })
-      .addCase(loadColumnMappings.rejected, (state, action) => {
+      .addCase(loadExcelConfigs.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
-    // Persist column mappings
+    // Add or Update Excel Config
     builder
-      .addCase(persistColumnMappings.pending, (state) => { state.loading = true; })
-      .addCase(persistColumnMappings.fulfilled, (state) => { state.loading = false; })
-      .addCase(persistColumnMappings.rejected, (state, action) => {
-        state.loading = false; state.error = action.payload as string;
-      });
-    // Product mappings
-    builder
-      .addCase(loadProductMappings.pending, (state) => { state.loading = true; state.error = null; })
-      .addCase(loadProductMappings.fulfilled, (state, action) => {
-        state.loading = false;
-        state.productMappings = action.payload.mappings;
-        state.unmappedProducts = action.payload.unmapped;
-      })
-      .addCase(loadProductMappings.rejected, (state, action) => {
-        state.loading = false; state.error = action.payload as string;
-      });
-    // Add product mapping
-    builder
-      .addCase(addProductMapping.fulfilled, (state, action) => {
-        const { sourceProductName, productId, productTitle } = action.payload;
-        // Move from unmapped to mapped
-        state.unmappedProducts = state.unmappedProducts.filter(
-          (u) => u.sourceProductName !== sourceProductName
-        );
-        state.productMappings.push({
-          id: Date.now(),
-          sourceProductName,
-          productId,
-          productTitle,
-        });
-      });
-    // Remove product mapping
-    builder
-      .addCase(removeProductMapping.fulfilled, (state, action) => {
-        const { id, sourceProductName } = action.payload;
-        const removed = state.productMappings.find((m) => m.id === id);
-        if (removed) {
-          state.productMappings = state.productMappings.filter((m) => m.id !== id);
-          state.unmappedProducts.unshift({
-            sourceProductName,
-            leadCount: 0,
-          });
+      .addCase(addOrUpdateExcelConfig.fulfilled, (state, action) => {
+        const index = state.excelConfigs.findIndex(c => c.id === action.payload.id);
+        if (index >= 0) {
+          state.excelConfigs[index] = action.payload;
+        } else {
+          state.excelConfigs.push(action.payload);
         }
       });
+    // Remove Excel Config
+    builder
+      .addCase(removeExcelConfig.fulfilled, (state, action) => {
+        state.excelConfigs = state.excelConfigs.filter(c => c.id !== action.payload);
+      });
+      
     // Status mappings
     builder
       .addCase(loadStatusMappings.pending, (state) => { state.loading = true; state.error = null; })
@@ -119,28 +73,40 @@ const configSlice = createSlice({
       .addCase(loadStatusMappings.rejected, (state, action) => {
         state.loading = false; state.error = action.payload as string;
       });
-    // Add status rule
+    // Add or Update Status Rule
     builder
-      .addCase(addStatusRule.fulfilled, (state, action) => {
-        state.statusMappingRules.push(action.payload);
+      .addCase(addOrUpdateStatusRule.fulfilled, (state, action) => {
+        const index = state.statusMappingRules.findIndex(r => r.id === action.payload.id);
+        if (index >= 0) {
+          state.statusMappingRules[index] = action.payload;
+        } else {
+          state.statusMappingRules.push(action.payload);
+        }
+        
+        // Remove from unmapped if it exists there
         state.unmappedStatuses = state.unmappedStatuses.filter(
           (u) =>
-            !(u.sourceStatus === action.payload.sourceStatus &&
-              u.sourceSubStatus === action.payload.sourceSubStatus)
+            !(u.external_status === action.payload.external_status &&
+              u.external_remark === action.payload.external_remark)
         );
       });
     // Remove status rule
     builder
       .addCase(removeStatusRule.fulfilled, (state, action) => {
-        const { id, sourceStatus, sourceSubStatus } = action.payload;
+        const { id, external_status, external_remark } = action.payload;
         const removed = state.statusMappingRules.find((r) => r.id === id);
         if (removed) {
           state.statusMappingRules = state.statusMappingRules.filter((r) => r.id !== id);
-          state.unmappedStatuses.unshift({ sourceStatus, sourceSubStatus, remarkPattern: '', leadCount: 0 });
+          state.unmappedStatuses.unshift({ 
+            external_status, 
+            external_remark, 
+            lead_count: 0, 
+            bank_id: state.selectedBankId || 0 
+          });
         }
       });
   },
 });
 
-export const { setSelectedBank, updateColumnMapping, clearConfigError } = configSlice.actions;
+export const { setSelectedBank, clearConfigError } = configSlice.actions;
 export default configSlice.reducer;

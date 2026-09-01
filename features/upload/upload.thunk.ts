@@ -1,5 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { fetchUploadHistory, simulateUpload } from './upload.endpoints';
+import { fetchUploadHistory, uploadFile as uploadFileApi } from './upload.endpoints';
+import type { UploadRecord } from './upload.types';
 
 export const loadUploadHistory = createAsyncThunk(
   'upload/loadHistory',
@@ -12,10 +13,12 @@ export const loadUploadHistory = createAsyncThunk(
 export const uploadFile = createAsyncThunk(
   'upload/uploadFile',
   async (
-    { bankTitle, filename }: { bankTitle: string; filename: string },
+    formData: FormData,
     { rejectWithValue }
   ) => {
-    try { return await simulateUpload(bankTitle, filename); }
-    catch { return rejectWithValue('Upload failed. Please try again.'); }
+    try { return await uploadFileApi(formData); }
+    catch (error: any) { 
+      return rejectWithValue(error.response?.data?.message || 'Upload failed. Please try again.'); 
+    }
   }
 );

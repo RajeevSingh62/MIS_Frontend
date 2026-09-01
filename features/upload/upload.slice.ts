@@ -1,10 +1,9 @@
-import { createSlice } from '@reduxjs/toolkit';
-import type { UploadState } from './upload.types';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { UploadState, UploadRecord } from './upload.types';
 import { loadUploadHistory, uploadFile } from './upload.thunk';
-import dummyUploadHistory from '@/data/dummyUploadHistory';
 
 const initialState: UploadState = {
-  history: dummyUploadHistory, // preloaded so table shows immediately
+  history: [],
   lastResult: null,
   uploading: false,
   error: null,
@@ -32,19 +31,8 @@ const uploadSlice = createSlice({
       })
       .addCase(uploadFile.fulfilled, (state, action) => {
         state.uploading = false;
-        state.lastResult = action.payload;
-        // Prepend to history
-        state.history.unshift({
-          id: Date.now(),
-          bankTitle: action.payload.bankTitle,
-          filename: action.payload.filename,
-          uploadedBy: 'Current User',
-          uploadedAt: new Date().toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }),
-          totalRows: action.payload.totalRows,
-          successRows: action.payload.successRows,
-          exceptionRows: action.payload.exceptionRows,
-          status: 'Completed',
-        });
+        state.lastResult = action.payload as UploadRecord;
+        state.history.unshift(action.payload as UploadRecord);
       })
       .addCase(uploadFile.rejected, (state, action) => {
         state.uploading = false;

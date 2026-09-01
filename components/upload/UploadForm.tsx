@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { uploadFile } from '@/features/upload/upload.thunk';
 import { selectUploading } from '@/features/upload/upload.selectors';
-import { selectBanks } from '@/features/reference/reference.selectors';
+import { selectBanks, selectProducts } from '@/features/reference/reference.selectors';
 import Button from '@/components/ui/Button';
 
 export default function UploadForm() {
@@ -18,6 +18,8 @@ export default function UploadForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const banks = useAppSelector(selectBanks);
+  const allProducts = useAppSelector(selectProducts);
+  const products = allProducts.filter(p => p.bank_id === Number(selectedBankId));
 
   const selectedBank = banks.find((b) => b.id === Number(selectedBankId));
 
@@ -41,11 +43,22 @@ export default function UploadForm() {
     if (dropped) handleFileSelect(dropped);
   };
 
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+
   const handleSubmit = () => {
     if (!selectedBank) { setError('Please select a bank.'); return; }
     if (!file) { setError('Please select a file to upload.'); return; }
     setError('');
-    dispatch(uploadFile({ bankTitle: selectedBank.bank_title, filename: file.name }));
+
+    const formData = new FormData();
+    formData.append('bank_id', selectedBankId);
+    if (selectedProductId) {
+      formData.append('product_id', selectedProductId);
+    }
+    formData.append('file', file);
+
+    dispatch(uploadFile(formData));
+    
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -57,23 +70,47 @@ export default function UploadForm() {
         <p className="text-sm text-gray-500 mt-0.5">Select a bank and upload an Excel or CSV file with lead data.</p>
       </div>
 
-      {/* Bank selector */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="upload-bank" className="text-sm font-medium text-gray-700">
-          Bank <span className="text-red-500">*</span>
-        </label>
-        <select
-          id="upload-bank"
-          value={selectedBankId}
-          onChange={(e) => setSelectedBankId(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white text-sm text-gray-800 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-xs"
-          disabled={uploading}
-        >
-          <option value="">Select bank…</option>
-          {banks.map((b) => (
-            <option key={b.id} value={b.id}>{b.bank_title}</option>
-          ))}
-        </select>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Bank selector */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="upload-bank" className="text-sm font-medium text-gray-700">
+            Bank <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="upload-bank"
+            value={selectedBankId}
+            onChange={(e) => {
+              setSelectedBankId(e.target.value);
+              setSelectedProductId('');
+            }}
+            className="rounded-lg border border-gray-300 bg-white text-sm text-gray-800 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={uploading}
+          >
+            <option value="">Select bank…</option>
+            {banks.map((b) => (
+              <option key={b.id} value={b.id}>{b.bank_title}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Product selector */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="upload-product" className="text-sm font-medium text-gray-700">
+            Product (Optional)
+          </label>
+          <select
+            id="upload-product"
+            value={selectedProductId}
+            onChange={(e) => setSelectedProductId(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white text-sm text-gray-800 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            disabled={uploading || !selectedBankId}
+          >
+            <option value="">All Products</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Drop zone */}

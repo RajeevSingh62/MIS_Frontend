@@ -4,6 +4,7 @@ import configReducer from '@/features/config/config.slice';
 import uploadReducer from '@/features/upload/upload.slice';
 import dashboardReducer from '@/features/dashboard/dashboard.slice';
 import referenceReducer from '@/features/reference/reference.slice';
+import exceptionsReducer from '@/features/exceptions/exceptions.slice';
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -11,6 +12,7 @@ const rootReducer = combineReducers({
   upload: uploadReducer,
   dashboard: dashboardReducer,
   reference: referenceReducer,
+  exceptions: exceptionsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

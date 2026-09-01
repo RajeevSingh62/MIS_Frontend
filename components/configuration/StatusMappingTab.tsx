@@ -7,120 +7,84 @@ import {
   selectUnmappedStatuses,
   selectConfigLoading,
 } from '@/features/config/config.selectors';
+import { selectProducts } from '@/features/reference/reference.selectors';
 import {
   loadStatusMappings,
-  addStatusRule,
+  addOrUpdateStatusRule,
   removeStatusRule,
 } from '@/features/config/config.thunk';
-import { canonicalStatusFlat, canonicalStatusGroups } from '@/data/dummyCanonicalStatuses';
-import type { CanonicalGroup } from '@/data/dummyCanonicalStatuses';
-import type { StatusMappingRule } from '@/data/dummyStatusMappingRules';
-import StatusBadge from '@/components/ui/StatusBadge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import type { StatusMappingRule } from '@/features/config/config.types';
 
 interface StatusMappingTabProps {
   bankId: number;
 }
 
-interface PendingRule {
-  canonicalStatus: string;
-  canonicalGroup: CanonicalGroup | '';
-}
-
-const emptyNewRule = {
-  sourceStatus: '',
-  sourceSubStatus: '',
-  remarkPattern: '',
-  canonicalStatus: '',
-  canonicalGroup: '' as CanonicalGroup | '',
+const emptyRule: Partial<StatusMappingRule> = {
+  product_id: null,
+  external_status: '',
+  external_remark: '',
+  internal_status_id: 0,
+  priority: 4,
+  is_active: true,
 };
+
+const internalStatuses = [
+  { id: 1, title: 'LEAD ADDED' },
+  { id: 2, title: 'SIGNUP PENDING' },
+  { id: 3, title: 'SIGNUP COMPLETED' },
+  { id: 4, title: 'VKYC PENDING' },
+  { id: 5, title: 'VKYC COMPLETED' },
+  { id: 6, title: 'ACCOUNT OPEN' },
+  { id: 7, title: 'DISBURSED' },
+  { id: 8, title: 'REJECTED' },
+];
 
 export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
   const dispatch = useAppDispatch();
   const rules = useAppSelector(selectStatusMappingRules);
   const unmapped = useAppSelector(selectUnmappedStatuses);
   const loading = useAppSelector(selectConfigLoading);
+  const products = useAppSelector(selectProducts).filter(p => p.bank_id === bankId);
 
-  const [pendingRules, setPendingRules] = useState<Record<string, PendingRule>>({});
   const [modalOpen, setModalOpen] = useState(false);
-  const [newRule, setNewRule] = useState(emptyNewRule);
+  const [editingRule, setEditingRule] = useState<Partial<StatusMappingRule>>(emptyRule);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     dispatch(loadStatusMappings(bankId));
-    setPendingRules({});
   }, [bankId, dispatch]);
 
-  const handlePendingChange = (key: string, canonicalStatus: string) => {
-    const found = canonicalStatusFlat.find((s) => s.status === canonicalStatus);
-    setPendingRules((prev) => ({
-      ...prev,
-      [key]: {
-        canonicalStatus,
-        canonicalGroup: found?.group ?? '',
-      },
-    }));
-  };
-
-  const handleSaveUnmapped = (
-    sourceStatus: string,
-    sourceSubStatus: string,
-    remarkPattern: string
-  ) => {
-    const key = `${sourceStatus}|${sourceSubStatus}`;
-    const pending = pendingRules[key];
-    if (!pending?.canonicalStatus || !pending.canonicalGroup) return;
-    dispatch(
-      addStatusRule({
-        bankId,
-        rule: {
-          sourceStatus,
-          sourceSubStatus,
-          remarkPattern,
-          canonicalStatus: pending.canonicalStatus,
-          canonicalGroup: pending.canonicalGroup as CanonicalGroup,
-        },
-      })
-    );
-  };
-
-  const handleAddNew = () => {
-    if (!newRule.sourceStatus || !newRule.canonicalStatus || !newRule.canonicalGroup) return;
-    dispatch(
-      addStatusRule({
-        bankId,
-        rule: {
-          sourceStatus: newRule.sourceStatus,
-          sourceSubStatus: newRule.sourceSubStatus,
-          remarkPattern: newRule.remarkPattern,
-          canonicalStatus: newRule.canonicalStatus,
-          canonicalGroup: newRule.canonicalGroup as CanonicalGroup,
-        },
-      })
-    );
-    setNewRule(emptyNewRule);
+  const handleSave = async () => {
+    await dispatch(addOrUpdateStatusRule({ ...editingRule, bank_id: bankId })).unwrap();
     setModalOpen(false);
+    setEditingRule(emptyRule);
   };
 
-  const canonicalSelect = (value: string, onChange: (v: string) => void, id: string) => (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-gray-200 bg-white text-sm text-gray-800 py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
-    >
-      <option value="">Select canonical status…</option>
-      {(Object.keys(canonicalStatusGroups) as CanonicalGroup[]).map((group) => (
-        <optgroup key={group} label={group}>
-          {canonicalStatusGroups[group].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+  const handleEdit = (rule: StatusMappingRule) => {
+    setEditingRule(rule);
+    setModalOpen(true);
+  };
+
+  const handleDelete = (rule: StatusMappingRule) => {
+    if (confirm('Are you sure you want to delete this mapping?')) {
+      dispatch(
+        removeStatusRule({
+          id: rule.id,
+          external_status: rule.external_status,
+          external_remark: rule.external_remark,
+        })
+      );
+    }
+  };
+
+  const filteredRules = rules.filter(r => 
+    r.external_status.toLowerCase().includes(search.toLowerCase()) || 
+    (r.external_remark && r.external_remark.toLowerCase().includes(search.toLowerCase()))
   );
 
-  if (loading && rules.length === 0 && unmapped.length === 0) {
+  if (loading && rules.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
         <svg className="animate-spin h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24">
@@ -134,131 +98,83 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Unmapped statuses */}
-      <section>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          Unmapped Status Combinations
-          <span className="ml-1 rounded-full bg-amber-100 text-amber-700 text-xs px-2 py-0.5">
-            {unmapped.length}
-          </span>
-        </h3>
-        {unmapped.length === 0 ? (
-          <p className="text-sm text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-xl">
-            No unmapped status combinations for this bank. 🎉
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  {['Status', 'Sub Status', 'Remark', 'Leads', 'Canonical Status', ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {unmapped.map((item, i) => {
-                  const key = `${item.sourceStatus}|${item.sourceSubStatus}`;
-                  const pending = pendingRules[key];
-                  return (
-                    <tr key={key} className={`border-b border-gray-100 ${i % 2 ? 'bg-gray-50/50' : ''}`}>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-800">{item.sourceStatus}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{item.sourceSubStatus || '—'}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{item.remarkPattern || '—'}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{item.leadCount}</td>
-                      <td className="px-4 py-2.5 min-w-[240px]">
-                        {canonicalSelect(
-                          pending?.canonicalStatus ?? '',
-                          (v) => handlePendingChange(key, v),
-                          `cs-${key}`
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <Button
-                          size="sm"
-                          disabled={!pending?.canonicalStatus}
-                          onClick={() =>
-                            handleSaveUnmapped(item.sourceStatus, item.sourceSubStatus, item.remarkPattern)
-                          }
-                        >
-                          Save
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
       {/* Existing rules */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-            Existing Rules
-            <span className="ml-1 rounded-full bg-green-100 text-green-700 text-xs px-2 py-0.5">
-              {rules.length}
-            </span>
-          </h3>
-          <Button
-            id="add-status-rule-btn"
-            size="sm"
-            variant="secondary"
-            onClick={() => setModalOpen(true)}
-            leftIcon={
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            }
-          >
-            Add New Rule
-          </Button>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              Status Mappings
+              <span className="ml-1 rounded-full bg-green-100 text-green-700 text-xs px-2 py-0.5">
+                {rules.length}
+              </span>
+            </h3>
+            <p className="text-xs text-gray-500">Map bank-specific statuses to your internal lead statuses.</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <input 
+              type="text" 
+              placeholder="Search statuses..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none w-64"
+            />
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingRule(emptyRule);
+                setModalOpen(true);
+              }}
+              leftIcon={
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              }
+            >
+              Add Mapping
+            </Button>
+          </div>
         </div>
-        {rules.length === 0 ? (
+
+        {filteredRules.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-xl">
-            No rules configured yet.
+            {search ? 'No mappings match your search.' : 'No mappings configured yet.'}
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  {['Source Status', 'Sub Status', 'Remark Pattern', 'Canonical Status', ''].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
-                  ))}
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">External Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">External Remark</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Product Scope</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Internal Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {rules.map((rule, i) => (
-                  <tr key={rule.id} className={`border-b border-gray-100 ${i % 2 ? 'bg-gray-50/50' : ''}`}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-800">{rule.sourceStatus}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{rule.sourceSubStatus || '—'}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{rule.remarkPattern || '—'}</td>
-                    <td className="px-4 py-2.5">
-                      <StatusBadge group={rule.canonicalGroup} status={rule.canonicalStatus} />
+              <tbody className="divide-y divide-gray-100">
+                {filteredRules.map((rule) => (
+                  <tr key={rule.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-2.5 font-mono text-xs text-indigo-700 bg-indigo-50/50 rounded ml-4 my-1 inline-block border border-indigo-100">
+                      {rule.external_status}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600 max-w-[200px] truncate" title={rule.external_remark || ''}>
+                      {rule.external_remark || '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-600">
+                      {rule.product?.title || 'All Products'}
                     </td>
                     <td className="px-4 py-2.5">
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() =>
-                          dispatch(
-                            removeStatusRule({
-                              id: rule.id,
-                              sourceStatus: rule.sourceStatus,
-                              sourceSubStatus: rule.sourceSubStatus,
-                            })
-                          )
-                        }
-                      >
-                        Remove
-                      </Button>
+                      <span className="font-medium text-xs text-gray-800 bg-gray-100 px-2 py-1 rounded">
+                        {rule.internal_status?.title || internalStatuses.find(s => s.id === Number(rule.internal_status_id))?.title || 'Unknown'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(rule)} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Edit</button>
+                        <button onClick={() => handleDelete(rule)} className="text-red-600 hover:text-red-800 text-xs font-medium">Remove</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -272,7 +188,7 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Add New Status Mapping Rule"
+        title={editingRule.id ? "Edit Status Mapping" : "Add Status Mapping"}
         size="lg"
         footer={
           <>
@@ -281,63 +197,65 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
             </Button>
             <Button
               size="sm"
-              disabled={!newRule.sourceStatus || !newRule.canonicalStatus}
-              onClick={handleAddNew}
+              disabled={!editingRule.external_status || !editingRule.internal_status_id}
+              onClick={handleSave}
             >
-              Add Rule
+              Save Mapping
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Source Status *</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">External Status *</label>
               <input
                 type="text"
-                value={newRule.sourceStatus}
-                onChange={(e) => setNewRule((r) => ({ ...r, sourceStatus: e.target.value }))}
-                placeholder="e.g. ACTIVE"
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={editingRule.external_status || ''}
+                onChange={(e) => setEditingRule({ ...editingRule, external_status: e.target.value })}
+                placeholder="e.g. APPROVED"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-600">Source Sub Status</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">External Remark (Optional)</label>
               <input
                 type="text"
-                value={newRule.sourceSubStatus}
-                onChange={(e) => setNewRule((r) => ({ ...r, sourceSubStatus: e.target.value }))}
+                value={editingRule.external_remark || ''}
+                onChange={(e) => setEditingRule({ ...editingRule, external_remark: e.target.value })}
                 placeholder="e.g. KYC DONE"
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
               />
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Remark Pattern (regex, optional)</label>
-            <input
-              type="text"
-              value={newRule.remarkPattern}
-              onChange={(e) => setNewRule((r) => ({ ...r, remarkPattern: e.target.value }))}
-              placeholder="e.g. CIBIL.*"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+          
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">Internal Status *</label>
+            <select
+              value={editingRule.internal_status_id || ''}
+              onChange={(e) => setEditingRule({ ...editingRule, internal_status_id: Number(e.target.value) })}
+              className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            >
+              <option value="">Select internal status...</option>
+              {internalStatuses.map(s => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600">Canonical Status *</label>
-            {canonicalSelect(newRule.canonicalStatus, (v) => {
-              const found = canonicalStatusFlat.find((s) => s.status === v);
-              setNewRule((r) => ({
-                ...r,
-                canonicalStatus: v,
-                canonicalGroup: found?.group ?? '',
-              }));
-            }, 'new-rule-canonical')}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">Product Scope (Optional)</label>
+            <select
+              value={editingRule.product_id || ''}
+              onChange={(e) => setEditingRule({ ...editingRule, product_id: e.target.value ? Number(e.target.value) : null })}
+              className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            >
+              <option value="">Apply to all products</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
           </div>
-          {newRule.canonicalGroup && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              Group: <StatusBadge group={newRule.canonicalGroup as CanonicalGroup} />
-            </div>
-          )}
         </div>
       </Modal>
     </div>

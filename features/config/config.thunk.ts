@@ -1,61 +1,35 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
-  fetchColumnMappings,
-  saveColumnMappings,
-  fetchProductMappings,
-  saveProductMapping,
-  deleteProductMapping,
+  fetchExcelConfigs,
+  saveExcelConfig,
+  deleteExcelConfig,
   fetchStatusMappings,
   saveStatusRule,
   deleteStatusRule,
 } from './config.endpoints';
-import type { ColumnMapping } from '@/data/dummyColumnMappings';
-import type { StatusMappingRule } from '@/data/dummyStatusMappingRules';
+import type { BankExcelConfig, StatusMappingRule } from './config.types';
 
-export const loadColumnMappings = createAsyncThunk(
-  'config/loadColumnMappings',
+export const loadExcelConfigs = createAsyncThunk(
+  'config/loadExcelConfigs',
   async (bankId: number, { rejectWithValue }) => {
-    try { return await fetchColumnMappings(bankId); }
-    catch (e) { return rejectWithValue('Failed to load column mappings'); }
+    try { return await fetchExcelConfigs(bankId); }
+    catch (e) { return rejectWithValue('Failed to load excel configs'); }
   }
 );
 
-export const persistColumnMappings = createAsyncThunk(
-  'config/persistColumnMappings',
-  async ({ bankId, mappings }: { bankId: number; mappings: ColumnMapping[] }, { rejectWithValue }) => {
-    try { await saveColumnMappings(bankId, mappings); return mappings; }
-    catch (e) { return rejectWithValue('Failed to save column mappings'); }
+export const addOrUpdateExcelConfig = createAsyncThunk(
+  'config/addOrUpdateExcelConfig',
+  async (config: Partial<BankExcelConfig>, { rejectWithValue }) => {
+    try { return await saveExcelConfig(config); }
+    catch (e) { return rejectWithValue('Failed to save excel config'); }
   }
 );
 
-export const loadProductMappings = createAsyncThunk(
-  'config/loadProductMappings',
-  async (bankId: number, { rejectWithValue }) => {
-    try { return await fetchProductMappings(bankId); }
-    catch (e) { return rejectWithValue('Failed to load product mappings'); }
-  }
-);
-
-export const addProductMapping = createAsyncThunk(
-  'config/addProductMapping',
-  async (
-    { bankId, sourceProductName, productId, productTitle }: {
-      bankId: number; sourceProductName: string; productId: number; productTitle: string;
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      await saveProductMapping(bankId, sourceProductName, productId);
-      return { sourceProductName, productId, productTitle };
-    } catch (e) { return rejectWithValue('Failed to save product mapping'); }
-  }
-);
-
-export const removeProductMapping = createAsyncThunk(
-  'config/removeProductMapping',
-  async ({ id, sourceProductName }: { id: number; sourceProductName: string }, { rejectWithValue }) => {
-    try { await deleteProductMapping(id); return { id, sourceProductName }; }
-    catch (e) { return rejectWithValue('Failed to remove product mapping'); }
+export const removeExcelConfig = createAsyncThunk(
+  'config/removeExcelConfig',
+  async (id: number, { rejectWithValue }) => {
+    try { await deleteExcelConfig(id); return id; }
+    catch (e) { return rejectWithValue('Failed to remove excel config'); }
   }
 );
 
@@ -67,21 +41,18 @@ export const loadStatusMappings = createAsyncThunk(
   }
 );
 
-export const addStatusRule = createAsyncThunk(
-  'config/addStatusRule',
-  async (
-    { bankId, rule }: { bankId: number; rule: Omit<StatusMappingRule, 'id'> },
-    { rejectWithValue }
-  ) => {
-    try { return await saveStatusRule(bankId, rule); }
+export const addOrUpdateStatusRule = createAsyncThunk(
+  'config/addOrUpdateStatusRule',
+  async (rule: Partial<StatusMappingRule>, { rejectWithValue }) => {
+    try { return await saveStatusRule(rule); }
     catch (e) { return rejectWithValue('Failed to save status rule'); }
   }
 );
 
 export const removeStatusRule = createAsyncThunk(
   'config/removeStatusRule',
-  async ({ id, sourceStatus, sourceSubStatus }: { id: number; sourceStatus: string; sourceSubStatus: string }, { rejectWithValue }) => {
-    try { await deleteStatusRule(id); return { id, sourceStatus, sourceSubStatus }; }
+  async ({ id, external_status, external_remark }: { id: number; external_status: string; external_remark: string | null }, { rejectWithValue }) => {
+    try { await deleteStatusRule(id); return { id, external_status, external_remark }; }
     catch (e) { return rejectWithValue('Failed to remove status rule'); }
   }
 );
