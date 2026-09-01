@@ -8,4 +8,4 @@ export const selectReferenceError = (state: RootState) => state.reference.error;
 
 // Derived: products filtered by a given bankId
 export const selectBankProducts = (bankId: number | null) => (state: RootState) =>
-  bankId ? state.reference.products.filter((p) => p.bank_id === bankId) : [];
+  bankId ? state.reference.products.filter((p) => String(p.bank_id) === String(bankId)) : [];

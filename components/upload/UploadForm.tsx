@@ -19,9 +19,9 @@ export default function UploadForm() {
 
   const banks = useAppSelector(selectBanks);
   const allProducts = useAppSelector(selectProducts);
-  const products = allProducts.filter(p => p.bank_id === Number(selectedBankId));
+  const products = allProducts.filter(p => String(p.bank_id) === selectedBankId);
 
-  const selectedBank = banks.find((b) => b.id === Number(selectedBankId));
+  const selectedBank = banks.find((b) => String(b.id) === selectedBankId);
 
   const acceptedTypes = ['.xlsx', '.xls', '.csv'];
   const isValidFile = (f: File) =>

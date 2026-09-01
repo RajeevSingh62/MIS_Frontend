@@ -21,6 +21,12 @@ const uploadSlice = createSlice({
     builder
       .addCase(loadUploadHistory.fulfilled, (state, action) => {
         state.history = action.payload;
+        if (state.lastResult) {
+          const updated = action.payload.find(r => r.id === state.lastResult?.id);
+          if (updated) {
+            state.lastResult = updated;
+          }
+        }
       });
     // Upload file
     builder

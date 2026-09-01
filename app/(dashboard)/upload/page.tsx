@@ -1,14 +1,32 @@
 'use client';
 
-import { useAppSelector } from '@/redux/hooks';
-import { selectLastUploadResult, selectUploading } from '@/features/upload/upload.selectors';
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import { selectLastUploadResult, selectUploading, selectUploadHistory } from '@/features/upload/upload.selectors';
+import { loadUploadHistory } from '@/features/upload/upload.thunk';
 import UploadForm from '@/components/upload/UploadForm';
 import UploadSummaryCard from '@/components/upload/UploadSummaryCard';
 import RecentUploadsTable from '@/components/upload/RecentUploadsTable';
 
 export default function UploadPage() {
+  const dispatch = useAppDispatch();
   const lastResult = useAppSelector(selectLastUploadResult);
   const uploading = useAppSelector(selectUploading);
+  const history = useAppSelector(selectUploadHistory);
+
+  // Poll for updates if any recent upload is still processing
+  useEffect(() => {
+    const hasProcessing = history.some(
+      (r) => r.status === 'PROCESSING' || r.status === 'UPLOADED'
+    );
+
+    if (hasProcessing) {
+      const interval = setInterval(() => {
+        dispatch(loadUploadHistory());
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [history, dispatch]);
 
   return (
     <div className="flex flex-col gap-6">
