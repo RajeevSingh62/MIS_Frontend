@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { selectExcelConfigs, selectConfigLoading } from '@/features/config/config.selectors';
 import { loadExcelConfigs, addOrUpdateExcelConfig, removeExcelConfig } from '@/features/config/config.thunk';
+import axiosInstance from '@/lib/axiosInstance';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { selectProducts } from '@/features/reference/reference.selectors';
@@ -33,6 +34,9 @@ export default function ExcelConfigTab({ bankId }: ExcelConfigTabProps) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Partial<BankExcelConfig>>(emptyConfig);
+  const [detectedHeaders, setDetectedHeaders] = useState<string[] | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     dispatch(loadExcelConfigs(bankId));
@@ -42,11 +46,48 @@ export default function ExcelConfigTab({ bankId }: ExcelConfigTabProps) {
     await dispatch(addOrUpdateExcelConfig({ ...editingConfig, bank_id: bankId })).unwrap();
     setModalOpen(false);
     setEditingConfig(emptyConfig);
+    setDetectedHeaders(null);
   };
 
   const handleEdit = (config: BankExcelConfig) => {
     setEditingConfig(config);
+    setDetectedHeaders(null);
     setModalOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsDetecting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/excel-configs/detect-columns`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Server responded with an error');
+      }
+      
+      const data = await response.json();
+      setDetectedHeaders(data.headers);
+    } catch (error) {
+      console.error('Failed to detect columns', error);
+      alert('Failed to detect columns. Please ensure you uploaded a valid Excel/CSV file.');
+    } finally {
+      setIsDetecting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -78,6 +119,7 @@ export default function ExcelConfigTab({ bankId }: ExcelConfigTabProps) {
           size="sm"
           onClick={() => {
             setEditingConfig(emptyConfig);
+            setDetectedHeaders(null);
             setModalOpen(true);
           }}
         >
@@ -142,6 +184,29 @@ export default function ExcelConfigTab({ bankId }: ExcelConfigTabProps) {
         }
       >
         <div className="flex flex-col gap-5">
+          <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-indigo-900">Auto-detect Columns</h4>
+                <p className="text-xs text-indigo-700 mt-0.5">Upload a sample Excel/CSV file from this bank to easily select column headers from a dropdown.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".xlsx,.xls,.csv"
+                className="text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 cursor-pointer"
+              />
+              {isDetecting && <span className="text-xs text-indigo-600 flex items-center gap-1">
+                <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                Extracting...
+              </span>}
+              {detectedHeaders && <span className="text-xs text-green-600 font-medium">Successfully extracted {detectedHeaders.length} headers!</span>}
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">Product Scope</label>
             <select
@@ -160,36 +225,75 @@ export default function ExcelConfigTab({ bankId }: ExcelConfigTabProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Lead ID Column Header *</label>
-              <input
-                type="text"
-                value={editingConfig.lead_identifier_column || ''}
-                onChange={(e) => setEditingConfig({ ...editingConfig, lead_identifier_column: e.target.value })}
-                className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-                placeholder="e.g. leadcode"
-              />
+              {detectedHeaders ? (
+                <select
+                  value={editingConfig.lead_identifier_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, lead_identifier_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                >
+                  <option value="">Select column...</option>
+                  {detectedHeaders.map(header => (
+                    <option key={header} value={header}>{header}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={editingConfig.lead_identifier_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, lead_identifier_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                  placeholder="e.g. leadcode"
+                />
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Status Column Header *</label>
-              <input
-                type="text"
-                value={editingConfig.status_column || ''}
-                onChange={(e) => setEditingConfig({ ...editingConfig, status_column: e.target.value })}
-                className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-                placeholder="e.g. status"
-              />
+              {detectedHeaders ? (
+                <select
+                  value={editingConfig.status_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, status_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                >
+                  <option value="">Select column...</option>
+                  {detectedHeaders.map(header => (
+                    <option key={header} value={header}>{header}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={editingConfig.status_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, status_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                  placeholder="e.g. status"
+                />
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Remark Column Header (Optional)</label>
-              <input
-                type="text"
-                value={editingConfig.remark_column || ''}
-                onChange={(e) => setEditingConfig({ ...editingConfig, remark_column: e.target.value })}
-                className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-                placeholder="e.g. remarks"
-              />
+              {detectedHeaders ? (
+                <select
+                  value={editingConfig.remark_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, remark_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                >
+                  <option value="">Select column...</option>
+                  {detectedHeaders.map(header => (
+                    <option key={header} value={header}>{header}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={editingConfig.remark_column || ''}
+                  onChange={(e) => setEditingConfig({ ...editingConfig, remark_column: e.target.value })}
+                  className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                  placeholder="e.g. remarks"
+                />
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700">Header Row Number</label>

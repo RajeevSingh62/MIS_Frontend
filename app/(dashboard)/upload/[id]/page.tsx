@@ -95,17 +95,31 @@ export default function UploadDetailPage() {
           
           <div className="flex items-center gap-4">
             {upload.file_path && upload.status !== 'PROCESSING' && (
-              <a 
-                href={`/api/v1/status-uploads/${upload.id}/download`}
-                target="_blank"
-                rel="noreferrer"
+              <button 
+                onClick={async () => {
+                  try {
+                    const response = await axiosInstance.get(`/api/v1/status-uploads/${upload.id}/download`, {
+                      responseType: 'blob',
+                    });
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `processed_${upload.file_name}`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.URL.revokeObjectURL(url);
+                  } catch (err) {
+                    console.error('Download failed', err);
+                  }
+                }}
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 Download Processed File
-              </a>
+              </button>
             )}
 
             <select

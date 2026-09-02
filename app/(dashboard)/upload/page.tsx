@@ -14,6 +14,11 @@ export default function UploadPage() {
   const uploading = useAppSelector(selectUploading);
   const history = useAppSelector(selectUploadHistory);
 
+  // Load upload history on initial mount
+  useEffect(() => {
+    dispatch(loadUploadHistory());
+  }, [dispatch]);
+
   // Poll for updates if any recent upload is still processing
   useEffect(() => {
     const hasProcessing = history.some(

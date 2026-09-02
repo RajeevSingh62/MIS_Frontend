@@ -7,7 +7,7 @@ import {
   selectUnmappedStatuses,
   selectConfigLoading,
 } from '@/features/config/config.selectors';
-import { selectProducts } from '@/features/reference/reference.selectors';
+import { selectProducts, selectLeadStatuses } from '@/features/reference/reference.selectors';
 import {
   loadStatusMappings,
   addOrUpdateStatusRule,
@@ -30,16 +30,6 @@ const emptyRule: Partial<StatusMappingRule> = {
   is_active: true,
 };
 
-const internalStatuses = [
-  { id: 1, title: 'LEAD ADDED' },
-  { id: 2, title: 'SIGNUP PENDING' },
-  { id: 3, title: 'SIGNUP COMPLETED' },
-  { id: 4, title: 'VKYC PENDING' },
-  { id: 5, title: 'VKYC COMPLETED' },
-  { id: 6, title: 'ACCOUNT OPEN' },
-  { id: 7, title: 'DISBURSED' },
-  { id: 8, title: 'REJECTED' },
-];
 
 export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
   const dispatch = useAppDispatch();
@@ -47,6 +37,7 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
   const unmapped = useAppSelector(selectUnmappedStatuses);
   const loading = useAppSelector(selectConfigLoading);
   const products = useAppSelector(selectProducts).filter(p => p.bank_id === bankId);
+  const leadStatuses = useAppSelector(selectLeadStatuses);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<StatusMappingRule>>(emptyRule);
@@ -167,7 +158,7 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="font-medium text-xs text-gray-800 bg-gray-100 px-2 py-1 rounded">
-                        {rule.internal_status?.title || internalStatuses.find(s => s.id === Number(rule.internal_status_id))?.title || 'Unknown'}
+                        {rule.internal_status?.title || leadStatuses.find(s => s.id === Number(rule.internal_status_id))?.title || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
@@ -237,7 +228,7 @@ export default function StatusMappingTab({ bankId }: StatusMappingTabProps) {
               className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             >
               <option value="">Select internal status...</option>
-              {internalStatuses.map(s => (
+              {leadStatuses.map(s => (
                 <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>

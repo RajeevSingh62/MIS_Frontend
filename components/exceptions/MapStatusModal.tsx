@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
-import { selectBanks } from '@/features/reference/reference.selectors';
+import { selectBanks, selectLeadStatuses, selectProducts } from '@/features/reference/reference.selectors';
 import { selectConfig, selectSelectedBankId } from '@/features/config/config.selectors';
 import { addOrUpdateStatusRule } from '@/features/config/config.thunk';
 import Button from '@/components/ui/Button';
@@ -19,25 +19,13 @@ export default function MapStatusModal({ externalStatus, externalRemark, bankId,
   const dispatch = useAppDispatch();
   const banks = useAppSelector(selectBanks);
   const bank = banks.find(b => b.id === bankId);
-  
+  const leadStatuses = useAppSelector(selectLeadStatuses);
+  const products = useAppSelector(selectProducts).filter(p => String(p.bank_id) === String(bankId));
+
   const [internalStatusId, setInternalStatusId] = useState<string>('');
-  const [productId, setProductId] = useState<string>(''); // Optional product specificity
+  const [productId, setProductId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // We should ideally have internal statuses from the reference slice.
-  // Assuming they are available or we can fetch them.
-  // For this component, let's hardcode some common ones for demo if not available.
-  const internalStatuses = [
-    { id: 1, title: 'LEAD ADDED' },
-    { id: 2, title: 'SIGNUP PENDING' },
-    { id: 3, title: 'SIGNUP COMPLETED' },
-    { id: 4, title: 'VKYC PENDING' },
-    { id: 5, title: 'VKYC COMPLETED' },
-    { id: 6, title: 'ACCOUNT OPEN' },
-    { id: 7, title: 'DISBURSED' },
-    { id: 8, title: 'REJECTED' },
-  ];
 
   const handleSave = async () => {
     if (!internalStatusId) {
@@ -108,7 +96,7 @@ export default function MapStatusModal({ externalStatus, externalRemark, bankId,
               className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Select internal status...</option>
-              {internalStatuses.map(s => (
+              {leadStatuses.map(s => (
                 <option key={s.id} value={s.id}>{s.title}</option>
               ))}
             </select>
@@ -124,7 +112,9 @@ export default function MapStatusModal({ externalStatus, externalRemark, bankId,
               className="rounded-lg border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Apply to all products</option>
-              {/* Product list goes here. Assuming global or bank-specific products. */}
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
             </select>
             <p className="text-xs text-gray-500">If selected, this mapping will only apply to this product.</p>
           </div>
